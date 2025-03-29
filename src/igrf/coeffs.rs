@@ -177,7 +177,7 @@ impl IGRFCoeffs {
 
     pub(crate) fn coeffs(&self, date: f64) -> (Vec<f64>, Vec<f64>, i16) {
         let years = self.coeffs.keys().collect::<Vec<_>>();
-        if !(1900. ..=2025.).contains(&date) {
+        if !(1900. ..=2030.).contains(&date) {
             panic!("Date out of range");
         }
 

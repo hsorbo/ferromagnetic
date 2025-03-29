@@ -20,7 +20,7 @@ pub struct IGRFresults {
 }
 
 pub struct IGRF {
-    coeffs: coeffs::IGRF13Coeffs,
+    coeffs: coeffs::IGRFCoeffs,
 }
 impl Default for IGRF {
     fn default() -> IGRF {

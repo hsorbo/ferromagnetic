@@ -1,7 +1,7 @@
 [package]
 name = "ferromagnetic"
 description = "Calculate the world geomagnetic fields using IGRF/WMM"
-version = "0.0.1-alpha.1"
+version = "0.0.1-alpha.2"
 edition = "2021"
 license = "MIT"
 authors = ["Håvard Sørbø <havard@hsorbo.no>"]

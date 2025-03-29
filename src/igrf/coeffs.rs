@@ -195,7 +195,7 @@ impl IGRFCoeffs {
 
         let mac_epoch = **years.iter().max().unwrap();
 
-        if date > 2025. {
+        if date > 2030. {
             todo!("2025+")
         }
 

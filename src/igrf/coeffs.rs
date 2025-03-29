@@ -1,16 +1,16 @@
 use std::collections::HashMap;
-const IGRF13COEFFS: &str = include_str!("igrf13coeffs.txt");
+const IGRFCOEFFS: &str = include_str!("../../coeffs/shc/igrf14coeffs.txt");
 const INTERVAL: f64 = 5.;
 struct CoeffDetails {
     nmax: i16,
     coeffs: Vec<f64>,
 }
-pub(crate) struct IGRF13Coeffs {
+pub(crate) struct IGRFCoeffs {
     coeffs: HashMap<i16, CoeffDetails>,
 }
 
-pub fn igrf_data() -> IGRF13Coeffs {
-    let parts = IGRF13COEFFS
+pub fn igrf_data() -> IGRFCoeffs {
+    let parts = IGRFCOEFFS
         .split('\n')
         .filter(|s| !s.is_empty())
         .filter(|s| !s.starts_with('#'))
@@ -66,7 +66,7 @@ pub fn igrf_data() -> IGRF13Coeffs {
         .map(|(a, b)| b + a * INTERVAL)
         .collect();
 
-    IGRF13Coeffs { coeffs }
+    IGRFCoeffs { coeffs }
 }
 
 fn find_date_factor(start_epoch: i16, end_epoch: i16, date: f64) -> f64 {
@@ -102,7 +102,7 @@ fn find_date_factor(start_epoch: i16, end_epoch: i16, date: f64) -> f64 {
     }
 }
 
-impl IGRF13Coeffs {
+impl IGRFCoeffs {
     fn extrapolate_coeffs(&self, start_epoch: i16, end_epoch: i16, date: f64) -> Vec<f64> {
         let start = self.coeffs.get(&start_epoch).unwrap();
         let end = self.coeffs.get(&end_epoch).unwrap();

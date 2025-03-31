@@ -1,21 +1,5 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
+use crate::OrthogonalStrength;
 
-impl Default for Point {
-    fn default() -> Self {
-        Point {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Difh {
     pub declination: f64,
     pub inclination: f64,
@@ -23,36 +7,32 @@ pub struct Difh {
     pub total_intensity: f64,
 }
 
-impl Default for Difh {
-    fn default() -> Self {
-        Difh {
-            declination: 0.0,
-            inclination: 0.0,
-            horizontal_intensity: 0.0,
-            total_intensity: 0.0,
-        }
-    }
-}
 impl Difh {
-    pub fn xyz(&mut self, p: &Point) {
+    pub fn from_orthognal_strength(p: &OrthogonalStrength) -> Self {
         const SN: f64 = 0.0001;
 
-        self.horizontal_intensity = (p.x * p.x + p.y * p.y).sqrt();
-        self.total_intensity = (p.x * p.x + p.y * p.y + p.z * p.z).sqrt();
+        let horizontal_intensity = (p.north * p.north + p.east * p.east).sqrt();
+        let total_intensity = (p.north * p.north + p.east * p.east + p.down * p.down).sqrt();
 
-        self.inclination = if self.total_intensity < SN {
+        let inclination = if total_intensity < SN {
             std::f64::NAN
         } else {
-            p.z.atan2(self.horizontal_intensity)
+            p.down.atan2(horizontal_intensity)
         };
 
-        self.declination = if self.total_intensity < SN || self.horizontal_intensity < SN {
+        let declination = if total_intensity < SN || horizontal_intensity < SN {
             std::f64::NAN
-        } else if self.horizontal_intensity + p.x < SN {
+        } else if horizontal_intensity + p.north < SN {
             std::f64::consts::PI
         } else {
-            2.0 * p.y.atan2(self.horizontal_intensity + p.x)
+            2.0 * p.east.atan2(horizontal_intensity + p.north)
         };
+        Self {
+            declination,
+            inclination,
+            horizontal_intensity,
+            total_intensity,
+        }
     }
 }
 
@@ -77,7 +57,7 @@ pub fn shval3(
     nmax: usize,
     gha: &[f64],
     ghb: &[f64],
-) -> (Point, Point) {
+) -> (OrthogonalStrength, OrthogonalStrength) {
     // 	// similar to shval3 from C implementation
     let earths_radius: f64 = 6371.2;
     let dtr: f64 = 0.01745329;
@@ -139,8 +119,8 @@ pub fn shval3(
     let mut m: usize = 1;
     let npq = (nmax * (nmax + 3)) / 2;
 
-    let mut p2 = Point::default();
-    let mut p1 = Point::default();
+    let mut p2 = OrthogonalStrength::default();
+    let mut p1 = OrthogonalStrength::default();
 
     let mut rr: f64 = 0.0;
     let mut fnn: f64 = 0.0;
@@ -175,14 +155,14 @@ pub fn shval3(
         let gh = &gha;
         let pp = &mut p1;
         if m == 0 {
-            pp.x += (rr * gh[l]) * q[k];
-            pp.z -= (rr * gh[l]) * p[k];
+            pp.north += (rr * gh[l]) * q[k];
+            pp.down -= (rr * gh[l]) * p[k];
         } else {
             let b = rr * gh[l + 1];
             let c = (rr * gh[l]) * cl[m] + b * sl[m];
-            pp.x += c * q[k];
-            pp.z -= c * p[k];
-            pp.y += if clat > 0.0 {
+            pp.north += c * q[k];
+            pp.down -= c * p[k];
+            pp.east += if clat > 0.0 {
                 ((rr * gh[l]) * sl[m] - b * cl[m]) * fm * p[k] / ((fnn + 1.0) * clat)
             } else {
                 ((rr * gh[l]) * sl[m] - b * cl[m]) * q[k] * slat
@@ -192,14 +172,14 @@ pub fn shval3(
         let gh = &ghb;
         let pp = &mut p2;
         if m == 0 {
-            pp.x += (rr * gh[l]) * q[k];
-            pp.z -= (rr * gh[l]) * p[k];
+            pp.north += (rr * gh[l]) * q[k];
+            pp.down -= (rr * gh[l]) * p[k];
         } else {
             let b = rr * gh[l + 1];
             let c = (rr * gh[l]) * cl[m] + b * sl[m];
-            pp.x += c * q[k];
-            pp.z -= c * p[k];
-            pp.y += if clat > 0.0 {
+            pp.north += c * q[k];
+            pp.down -= c * p[k];
+            pp.east += if clat > 0.0 {
                 ((rr * gh[l]) * sl[m] - b * cl[m]) * fm * p[k] / ((fnn + 1.0) * clat)
             } else {
                 ((rr * gh[l]) * sl[m] - b * cl[m]) * q[k] * slat
@@ -210,14 +190,14 @@ pub fn shval3(
         m += 1;
     }
     {
-        let old_x = p1.x;
-        p1.x = p1.x * cd + p1.z * sd;
-        p1.z = p1.z * cd - old_x * sd;
+        let old_x = p1.north;
+        p1.north = p1.north * cd + p1.down * sd;
+        p1.down = p1.down * cd - old_x * sd;
     }
     {
-        let old_x = p2.x;
-        p2.x = p2.x * cd + p2.z * sd;
-        p2.z = p2.z * cd - old_x * sd;
+        let old_x = p2.north;
+        p2.north = p2.north * cd + p2.down * sd;
+        p2.down = p2.down * cd - old_x * sd;
     }
 
     (p1, p2)
@@ -231,11 +211,10 @@ mod tests {
 
     #[test]
     fn difh_xyz() {
-        let mut difh = Difh::default();
-        difh.xyz(&Point {
-            x: 7074.026894642207,
-            y: 4596.188334222297,
-            z: 62650.49087477549,
+        let difh = Difh::from_orthognal_strength(&OrthogonalStrength {
+            north: 7074.026894642207,
+            east: 4596.188334222297,
+            down: 62650.49087477549,
         });
         assert_float_eq!(difh.declination, 0.5761834859773884, rel <= 1e-12);
         assert_float_eq!(difh.inclination, 1.4369489460941476, rel <= 1e-12);
@@ -641,11 +620,11 @@ mod tests {
             0.,
         ];
         let (a, b) = shval3(59.9, -109.9, 1.1, 10, &start_coeffs, &end_coeffs);
-        assert_float_eq!(a.x, 7074.026894642207, rel <= 1e-12);
-        assert_float_eq!(a.y, 4596.188334222297, rel <= 1e-12);
-        assert_float_eq!(a.z, 62650.49087477549, rel <= 1e-12);
-        assert_float_eq!(b.x, 7080.6056093223815, rel <= 1e-12);
-        assert_float_eq!(b.y, 4593.347978266618, rel <= 1e-12);
-        assert_float_eq!(b.z, 62630.350967492595, rel <= 1e-12);
+        assert_float_eq!(a.north, 7074.026894642207, rel <= 1e-12);
+        assert_float_eq!(a.east, 4596.188334222297, rel <= 1e-12);
+        assert_float_eq!(a.down, 62650.49087477549, rel <= 1e-12);
+        assert_float_eq!(b.north, 7080.6056093223815, rel <= 1e-12);
+        assert_float_eq!(b.east, 4593.347978266618, rel <= 1e-12);
+        assert_float_eq!(b.down, 62630.350967492595, rel <= 1e-12);
     }
 }

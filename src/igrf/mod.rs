@@ -1,22 +1,12 @@
+use crate::{MagneticComponents, OrthogonalStrength};
+
 mod coeffs;
 mod math;
 
-#[derive(Debug)]
 pub struct IGRFresults {
-    pub declination: f64,
-    pub declination_sv: f64,
-    pub inclination: f64,
-    pub inclination_sv: f64,
-    pub horizontal_intensity: f64,
-    pub horizontal_sv: f64,
-    pub north_component: f64,
-    pub north_sv: f64,
-    pub east_component: f64,
-    pub east_sv: f64,
-    pub vertical_component: f64,
-    pub vertical_sv: f64,
-    pub total_intensity: f64,
-    pub total_sv: f64,
+    pub result: MagneticComponents,
+    // Annual changes
+    pub sv: MagneticComponents,
 }
 
 pub struct IGRF {
@@ -34,37 +24,38 @@ impl IGRF {
         //input validation
         let (start_coeffs, end_coeffs, nmax) = self.coeffs.coeffs(date);
         let (a, b) = math::shval3(lat, lon, alt, nmax as usize, &start_coeffs, &end_coeffs);
-        let mut dif_a = math::Difh::default();
-        let mut dif_b = math::Difh::default();
-        dif_a.xyz(&a);
-        dif_b.xyz(&b);
+        let dif_a = math::Difh::from_orthognal_strength(&a);
+        let dif_b = math::Difh::from_orthognal_strength(&b);
 
-        let ddot = {
-            let mut ddot = (dif_b.declination - dif_a.declination).to_degrees();
-            if ddot > 180.0 {
-                ddot -= 360.0
-            }
-            if ddot <= -180.0 {
-                ddot += 360.0
-            }
-            ddot * 60.0
+        let result = MagneticComponents {
+            declination: dif_a.declination.to_degrees(),
+            inclination: dif_a.inclination.to_degrees(),
+            horizontal_intensity: dif_a.horizontal_intensity,
+            orthogonal_strength: a,
+            total_intensity: dif_a.total_intensity,
         };
 
-        IGRFresults {
-            declination: dif_a.declination.to_degrees(),
-            declination_sv: ddot,
-            inclination: dif_a.inclination.to_degrees(),
-            inclination_sv: (dif_b.inclination - dif_a.inclination).to_degrees() * 60.,
-            horizontal_intensity: dif_a.horizontal_intensity,
-            horizontal_sv: dif_b.horizontal_intensity - dif_a.horizontal_intensity,
-            north_component: a.x,
-            north_sv: b.x - a.x,
-            east_component: a.y,
-            east_sv: b.y - a.y,
-            vertical_component: a.z,
-            vertical_sv: b.z - a.z,
-            total_intensity: dif_a.total_intensity,
-            total_sv: dif_b.total_intensity - dif_a.total_intensity,
-        }
+        let sv = MagneticComponents {
+            declination: {
+                let mut ddot = (dif_b.declination - dif_a.declination).to_degrees();
+                if ddot > 180.0 {
+                    ddot -= 360.0
+                }
+                if ddot <= -180.0 {
+                    ddot += 360.0
+                }
+                ddot * 60.0
+            },
+            inclination: (dif_b.inclination - dif_a.inclination).to_degrees() * 60.,
+            horizontal_intensity: dif_b.horizontal_intensity - dif_a.horizontal_intensity,
+            orthogonal_strength: OrthogonalStrength {
+                north: b.north - result.orthogonal_strength.north,
+                east: b.east - result.orthogonal_strength.east,
+                down: b.down - result.orthogonal_strength.down,
+            },
+            total_intensity: dif_b.total_intensity - dif_a.total_intensity,
+        };
+
+        IGRFresults { result, sv }
     }
 }

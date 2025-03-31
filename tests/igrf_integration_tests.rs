@@ -1,23 +1,31 @@
-use ferromagnetic::igrf;
+use ferromagnetic::{igrf, MagneticComponents, OrthogonalStrength};
 use igrf::IGRFresults;
 use std::path::Path;
 
 fn lines_to_igrf(chunks: &[&str]) -> IGRFresults {
     IGRFresults {
-        declination: chunks[1].parse::<f64>().unwrap(),
-        declination_sv: chunks[2].parse::<f64>().unwrap(),
-        inclination: chunks[3].parse::<f64>().unwrap(),
-        inclination_sv: chunks[4].parse::<f64>().unwrap(),
-        horizontal_intensity: chunks[5].parse::<f64>().unwrap(),
-        horizontal_sv: chunks[6].parse::<f64>().unwrap(),
-        north_component: chunks[7].parse::<f64>().unwrap(),
-        north_sv: chunks[8].parse::<f64>().unwrap(),
-        east_component: chunks[9].parse::<f64>().unwrap(),
-        east_sv: chunks[10].parse::<f64>().unwrap(),
-        vertical_component: chunks[11].parse::<f64>().unwrap(),
-        vertical_sv: chunks[12].parse::<f64>().unwrap(),
-        total_intensity: chunks[13].parse::<f64>().unwrap(),
-        total_sv: chunks[14].parse::<f64>().unwrap(),
+        result: MagneticComponents {
+            declination: chunks[1].parse::<f64>().unwrap(),
+            inclination: chunks[3].parse::<f64>().unwrap(),
+            horizontal_intensity: chunks[5].parse::<f64>().unwrap(),
+            orthogonal_strength: OrthogonalStrength {
+                north: chunks[7].parse::<f64>().unwrap(),
+                east: chunks[9].parse::<f64>().unwrap(),
+                down: chunks[11].parse::<f64>().unwrap(),
+            },
+            total_intensity: chunks[13].parse::<f64>().unwrap(),
+        },
+        sv: MagneticComponents {
+            declination: chunks[2].parse::<f64>().unwrap(),
+            inclination: chunks[4].parse::<f64>().unwrap(),
+            horizontal_intensity: chunks[6].parse::<f64>().unwrap(),
+            orthogonal_strength: OrthogonalStrength {
+                north: chunks[8].parse::<f64>().unwrap(),
+                east: chunks[10].parse::<f64>().unwrap(),
+                down: chunks[12].parse::<f64>().unwrap(),
+            },
+            total_intensity: chunks[14].parse::<f64>().unwrap(),
+        },
     }
 }
 
@@ -83,8 +91,8 @@ fn test_igrf_data() {
         for line in contents.lines().skip(2) {
             let chunks = line.split_whitespace().collect::<Vec<_>>();
             let date = chunks[0].parse::<f64>().unwrap();
-            let expected = lines_to_igrf(&chunks);
-            let actual = igrf.calc(lat, lon, alt, date);
+            let expected = lines_to_igrf(&chunks).result;
+            let actual = igrf.calc(lat, lon, alt, date).result;
 
             assert_close(
                 actual.declination,
@@ -108,24 +116,24 @@ fn test_igrf_data() {
             );
 
             assert_close(
-                actual.north_component,
-                expected.north_component,
+                actual.orthogonal_strength.north,
+                expected.orthogonal_strength.north,
                 get_max_allowed_relative_error(lat),
-                get_max_allowed_absolute_tolerance(actual.north_component),
+                get_max_allowed_absolute_tolerance(actual.orthogonal_strength.north),
             );
 
             assert_close(
-                actual.east_component,
-                expected.east_component,
+                actual.orthogonal_strength.east,
+                expected.orthogonal_strength.east,
                 get_max_allowed_relative_error(lat),
-                get_max_allowed_absolute_tolerance(actual.east_component),
+                get_max_allowed_absolute_tolerance(actual.orthogonal_strength.east),
             );
 
             assert_close(
-                actual.vertical_component,
-                expected.vertical_component,
+                actual.orthogonal_strength.down,
+                expected.orthogonal_strength.down,
                 get_max_allowed_relative_error(lat),
-                get_max_allowed_absolute_tolerance(actual.vertical_component),
+                get_max_allowed_absolute_tolerance(actual.orthogonal_strength.down),
             );
 
             assert_close(

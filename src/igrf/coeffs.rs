@@ -19,7 +19,7 @@ pub fn igrf_data() -> IGRFCoeffs {
 
     let mut coeffs = parts[0]
         .iter()
-        .skip(3)
+        .skip(3) // skip to year columns
         .zip(parts[1].iter().skip(3))
         .enumerate()
         .map(|(i, (_, b))| {
@@ -56,8 +56,8 @@ pub fn igrf_data() -> IGRFCoeffs {
         .collect::<HashMap<i16, CoeffDetails>>();
 
     //todo: NASTY
-    let bses = coeffs.get(&2020).unwrap().coeffs.clone();
-    let ases = coeffs.get_mut(&2025).unwrap();
+    let bses = coeffs.get(&2025).unwrap().coeffs.clone();
+    let ases = coeffs.get_mut(&2030).unwrap();
 
     ases.coeffs = ases
         .coeffs
@@ -196,7 +196,7 @@ impl IGRFCoeffs {
         let mac_epoch = **years.iter().max().unwrap();
 
         if date > 2030. {
-            todo!("2025+")
+            todo!("2030+")
         }
 
         let (coeffs_start, nmax) = self.interpolate_coeffs(start, end, date);
